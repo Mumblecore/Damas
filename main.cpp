@@ -31,14 +31,12 @@ struct Nodo
     }
 };
 
-class Tree
+struct Tree
 {
-public:
     Tree(int *config, int nro_rojas, int nro_negras, int profundidad);
     ~Tree();
     // funcion q modifica el tablero a la jugada escogida por minmax
-    void calcular_jugada(int *Tablero);
-private:
+    bool calcular_jugada(int *Tablero);
     Nodo *root;
     int p;  // limite de la profundidad del arbol
 
@@ -71,11 +69,11 @@ Tree::~Tree()
 
 int Tree::min_max(Nodo *nodo, int nivel, int &mejor)
 {
-    std::cout << "MINMAX_call\n";
-    nodo->print();
+    // std::cout << "MINMAX_call\n";
+    // nodo->print();
     if (nivel < p)
         insertHijos(nodo,nivel);
-    std::cout << "Hijos: " << nodo->hijos.size() << "\n";
+    // std::cout << "Hijos: " << nodo->hijos.size() << "\n";
     if (nodo->hijos.size() == 0){
         return nodo->value;
     }
@@ -98,15 +96,19 @@ int Tree::min_max(Nodo *nodo, int nivel, int &mejor)
     }
 }
 
-void Tree::calcular_jugada(int *Tablero)
+bool Tree::calcular_jugada(int *Tablero)
 {
     // hacer uso del algoritmo min_max para encontrar el mejor camino
     // aqui tmb se genera todo el arbol
     int mejor;
     min_max(root,0,mejor);
+
+    if (root->hijos.size() == 0)
+        return false;
     // elaborar la jugada del mejor camino
     for (int j = 0; j < 64; j++)
         Tablero[j] = root->hijos[mejor]->config[j];
+    return true;
 }
 
 void Tree::insertHijos(Nodo *nodo, int nivel)
@@ -127,7 +129,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 // revierto cambios en p
                 p[(i-1)*8+j-1] = 0;
                 p[i*8+j] = piezaJugador;
-                std::cout << i << "," << j << "human:mov izq\n";
+                // std::cout << i << "," << j << "human:mov izq\n";
             }
             // mov der
             if (j < 7 && i > 0 && nodo->config[(i-1)*8+j+1] == 0){
@@ -138,7 +140,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 // revierto cambios en p
                 p[(i-1)*8+j+1] = 0;
                 p[i*8+j] = piezaJugador;
-                std::cout << i << "," << j << "human:mov der\n";
+                // std::cout << i << "," << j << "human:mov der\n";
             }
             // comer izq
             if (j > 1 && i > 1 && nodo->config[(i-2)*8+j-2] == 0 && nodo->config[(i-1)*8+j-1] == piezaIA){
@@ -151,7 +153,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 p[(i-2)*8+j-2] = 0;
                 p[(i-1)*8+j-1] = piezaIA;
                 p[i*8+j] = piezaJugador;
-                std::cout << i << "," << j << "human:comer izq\n";
+                // std::cout << i << "," << j << "human:comer izq\n";
             }
             // comer der
             if (j < 6 && i > 1 && nodo->config[(i-2)*8+j+2] == 0 && nodo->config[(i-1)*8+j+1] == piezaIA){
@@ -164,7 +166,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 p[(i-2)*8+j+2] = 0;
                 p[(i-1)*8+j+1] = piezaJugador;
                 p[i*8+j] = piezaIA;
-                std::cout << i << "," << j << "human:comer der\n";
+                // std::cout << i << "," << j << "human:comer der\n";
             }
         }
     }else{              // turno de la IA
@@ -180,7 +182,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 // revierto cambios en p
                 p[(i+1)*8+j-1] = 0;
                 p[i*8+j] = piezaIA;
-                std::cout << i << "," << j << "ia:mov izq\n";
+                // std::cout << i << "," << j << "ia:mov izq\n";
             }
             // mov der
             if (j < 7 && i < 7 && nodo->config[(i+1)*8+j+1] == 0){
@@ -191,7 +193,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 // revierto cambios en p
                 p[(i+1)*8+j+1] = 0;
                 p[i*8+j] = piezaIA;
-                std::cout << i << "," << j << "ia:mov der\n";
+                // std::cout << i << "," << j << "ia:mov der\n";
             }
             // comer izq
             if (j > 1 && i < 6 && nodo->config[(i+2)*8+j-2] == 0 && nodo->config[(i+1)*8+j-1] == piezaJugador){
@@ -204,7 +206,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 p[(i+2)*8+j-2] = 0;
                 p[(i+1)*8+j-1] = piezaJugador;
                 p[i*8+j] = piezaIA;
-                std::cout << i << "," << j << " ia:comer izq\n";
+                // std::cout << i << "," << j << " ia:comer izq\n";
             }
             // comer der
             if (j < 6 && i < 6 && nodo->config[(i+2)*8+j+2] == 0 && nodo->config[(i+1)*8+j+1] == piezaJugador){
@@ -217,7 +219,7 @@ void Tree::insertHijos(Nodo *nodo, int nivel)
                 p[(i+2)*8+j+2] = 0;
                 p[(i+1)*8+j+1] = piezaJugador;
                 p[i*8+j] = piezaIA;
-                std::cout << i << "," << j << "ia:comer der\n";
+                // std::cout << i << "," << j << "ia:comer der\n";
             }
         }
     }
@@ -233,7 +235,7 @@ private:
     void processEvents();
     void update(sf::Time dT);
     void render();
-    void handleClick(sf::Event::MouseButtonEvent evt);
+    bool handleClick(sf::Event::MouseButtonEvent evt);
 
     sf::RenderWindow mWindow;
     sf::Texture boardTexture;
@@ -308,19 +310,10 @@ boardSprite()
         0,1,0,1,0,1,0,1,
         1,0,1,0,1,0,1,0
     };
-    // int config_human[64] = {
-    //     0,0,0,0,0,2,0,2, 
-    //     2,0,0,0,2,0,2,0,
-    //     0,2,0,2,0,2,0,2,
-    //     2,0,1,0,0,0,1,0,
-    //     0,1,0,0,0,0,0,0,
-    //     1,0,1,0,1,0,0,0,
-    //     0,0,0,0,0,0,0,0,
-    //     1,0,1,0,2,0,1,0
-    // };
+
     selectPiece = false;
     IAProfundidad = _iaProfundidad;
-    // config Human
+    // quien empieza?
     if (iniciaHumano){
         for (int i = 0; i < 64; i++)
             Tablero[i] = config_human[i];
@@ -332,6 +325,8 @@ boardSprite()
             Tablero[i] = config_ia[i];
         piezaJugador = 2;
         piezaIA = 1;
+        Tree IATree(Tablero, 12, 12, IAProfundidad);
+        IATree.calcular_jugada(Tablero);
     }
 }
 
@@ -353,7 +348,9 @@ void Game::processEvents()
         switch (event.type)
         {
         case sf::Event::MouseButtonPressed:
-            handleClick(event.mouseButton);
+            if (handleClick(event.mouseButton) == false){
+                mWindow.close();
+            }
             break;
         case sf::Event::Closed:
             mWindow.close();
@@ -362,7 +359,7 @@ void Game::processEvents()
     }
 }
 
-void Game::handleClick(sf::Event::MouseButtonEvent evt)
+bool Game::handleClick(sf::Event::MouseButtonEvent evt)
 {
     // if hizo click en una de las fichas del jugador:
     if (selectPiece == false){
@@ -422,24 +419,47 @@ void Game::handleClick(sf::Event::MouseButtonEvent evt)
                     else                        // estaba a la izq
                         Tablero[8*(sel_i-1)+sel_j-1] = 0;
                 }
-                selectPiece = false;
-                opciones.clear();
-
+                
                 // Hacer jugada IA
                 int rojas = 0, negras = 0;
                 for (int i = 0; i < 64; i++){
                     if (Tablero[i] == 1) rojas++;
                     else if (Tablero[i] == 2) negras++;
                 }
-
                 Tree IATree(Tablero, rojas, negras, IAProfundidad);
-                IATree.calcular_jugada(Tablero);
+                if (IATree.calcular_jugada(Tablero) == false){
+                    std::cout << "IA No tiene mas jugadas disponibles.\n";
+                    return false;
+                }
+
+                // comprobar si el humano perdio
+                rojas = 0; negras = 0;
+                for (int i = 0; i < 64; i++){
+                    if (Tablero[i] == 1) rojas++;
+                    else if (Tablero[i] == 2) negras++;
+                }
+                if ((piezaJugador == 1 && rojas == 0) || (piezaJugador == 2 && negras == 0)){
+                    std::cout << "El humano perdio.\n";
+                    return false;
+                }
+
+                // comprobrar si le quedan movimientos al humano
+                Tree T(Tablero,rojas,negras,IAProfundidad);
+                T.insertHijos(T.root,1);
+                if (T.root->hijos.size() == 0){
+                    std::cout << "Humano No tiene mas jugadas disponibles.\n";
+                    return false;
+                }
+
+                // preparar para la proxima jugada
+                selectPiece = false;
+                opciones.clear();
                 break;
             }
         }
     }
-    
     render();
+    return true;
 }
 
 void Game::render()
@@ -483,9 +503,22 @@ void Game::render()
     mWindow.display();
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    Game game(2,true);
+    if (argc < 3){
+        std::cout << "Faltan argumentos. Intente con:\n";
+        std::cout << "./damas [profundidad] [jugador inicial: humano|IA]\n";
+        std::cout << "Ejem: ./damas 3 humano\n";
+        std::cout << "Ejem: ./damas 4 IA\n";
+    }
+    std::string player(argv[2]);
+    bool inicia_el_humano = true;
+    if (player == "humano")
+        inicia_el_humano = true;
+    else if (player == "IA")
+        inicia_el_humano = false;
+    
+    Game game(atoi(argv[1]),inicia_el_humano);
     game.run();
     
     return 0;
