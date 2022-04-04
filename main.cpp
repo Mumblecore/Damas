@@ -4,17 +4,20 @@
 
 #define BOARD_SIZE_PX 94
 #define SCALE_FACTOR 8.f
-#define PROFUNDIDAD 2
+
+int piezaJugador,piezaIA;
 
 struct Nodo
 {
     int config[64];
     int nro_rojas, nro_negras;
+    int value;
     std::vector<Nodo*> hijos;
 
     Nodo(int *A, int rojas, int negras){
         nro_rojas = rojas;
         nro_negras = negras;
+        value = (piezaIA == 1)?(rojas - negras):(negras - rojas);
         for (int i = 0; i < 64; i++)
             config[i] = A[i];
     }
@@ -23,27 +26,135 @@ struct Nodo
 class Tree
 {
 public:
-    Tree (int *config, int nro_rojas, int nro_negras);
+    Tree (int *config, int nro_rojas, int nro_negras, int profundidad);
     // funcion q modifica el tablero a la jugada escogida por minmax
     void calcular_jugada(int *Tablero);
 private:
     Nodo *root;
     int p;  // limite de la profundidad del arbol
 
-    // ya te las arreglas ...
-    // void insert(Nodo *padre, Nodo *hijo);
+    void insertHijos(Nodo *nodo);
+    void genRecursiva(Nodo *nodo, int nivel);
+    int min_max(Nodo *nodo, int nivel);
 };
 
-Tree::Tree (int *config, int nro_rojas, int nro_negras)
+Tree::Tree (int *config, int nro_rojas, int nro_negras, int profundidad)
 {
     root = new Nodo(config,nro_rojas,nro_negras);
-    p = PROFUNDIDAD;
+    p = profundidad;
+}
+
+void Tree::genRecursiva(Nodo *nodo, int nivel)
+{
+    if (nivel < p){
+        insertHijos(nodo);
+        for (int i = 0; i < nodo->hijos.size(); i++){
+            genRecursiva(nodo->hijos[i],nivel+1);
+        }
+    }
+}
+
+int Tree::min_max(Nodo *nodo, int nivel)
+{
+    if (nodo->hijos.size() == 0){
+        return nodo->value;
+    }
+    else{
+        int min = 1000;
+        int max = 0;
+        if (nivel & 1){ //min
+            for (int i = 0; i < nodo->hijos.size(); i++){
+                int val = min_max(nodo->hijos[i],nivel+1);
+                if (val < min) min = val;
+            }
+            return min;
+        }else{          //max
+            for (int i = 0; i < nodo->hijos.size(); i++){
+                int val = min_max(nodo->hijos[i],nivel+1);
+                if (val > max) max = val;
+            }
+            return max;
+        }
+    }
+}
+
+void Tree::calcular_jugada(int *Tablero)
+{
+    // generar todo el arbol hasta el nivel de profundidad escogido
+    genRecursiva(root,0);
+    // hacer uso del algoritmo min_max para encontrar el mejor camino
+    int mejor = min_max(root,0);
+    // elaborar la jugada del mejor camino
+    for (int i = 0; i < root->hijos.size(); i++){
+        if (root->hijos[i]->value == mejor){
+            for (int j = 0; j < 64; j++)
+                Tablero[j] = root->hijos[i]->config[j];
+            break;
+        }
+    }
+}
+
+void Tree::insertHijos(Nodo *nodo)
+{
+    int p[64];  // puntero auxiliar que modificaremos en lugar de config
+    for (int k = 0; k < 64; k++)
+        p[k] = nodo->config[k];
+    for (int i = 0; i < 8; i++){
+        for (int j = 0; j < 8; j++){
+            if (nodo->config[i*8+j] == piezaIA){
+                // mov izq
+                if (j > 0 && nodo->config[(i+1)*8+j-1] == 0){
+                    p[(i+1)*8+j-1] = piezaIA;
+                    p[i*8+j] = 0;
+                    Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
+                    nodo->hijos.push_back(n);
+                    // revierto cambios en p
+                    p[(i+1)*8+j-1] = 0;
+                    p[i*8+j] = piezaIA;
+                }
+                // mov der
+                if (j < 7 && nodo->config[(i+1)*8+j+1] == 0){
+                    p[(i+1)*8+j+1] = piezaIA;
+                    p[i*8+j] = 0;
+                    Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
+                    nodo->hijos.push_back(n);
+                    // revierto cambios en p
+                    p[(i+1)*8+j+1] = 0;
+                    p[i*8+j] = piezaIA;
+                }
+                // comer izq
+                if (j > 1 && i < 6 && nodo->config[(i+2)*8+j-2] == 0 && nodo->config[(i+1)*8+j-1] == piezaJugador){
+                    p[(i+2)*8+j-2] = piezaIA;
+                    p[(i+1)*8+j-1] = 0;
+                    p[i*8+j] = 0;
+                    Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1) : new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras);
+                    nodo->hijos.push_back(n);
+                    // revierto cambios en p
+                    p[(i+2)*8+j-2] = 0;
+                    p[(i+1)*8+j-1] = piezaJugador;
+                    p[i*8+j] = piezaIA;
+                }
+                // comer der
+                if (j < 6 && i < 6 && nodo->config[(i+2)*8+j+2] == 0 && nodo->config[(i+1)*8+j+1] == piezaJugador){
+                    p[(i+2)*8+j+2] = piezaIA;
+                    p[(i+1)*8+j+1] = 0;
+                    p[i*8+j] = 0;
+                    Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1) : new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras);
+                    nodo->hijos.push_back(n);
+                    // revierto cambios en p
+                    p[(i+2)*8+j+2] = 0;
+                    p[(i+1)*8+j+1] = piezaJugador;
+                    p[i*8+j] = piezaIA;
+                }
+            }
+        }
+    }
 }
 
 class Game
 {
 public:
-    Game();
+    Game(int _iaProfundidad);
     void run();
 
 private:
@@ -62,13 +173,13 @@ private:
     sf::Time TimePerFrame;
 
     int *Tablero;
-    int piezaJugador,piezaIA;
     std::vector<int> opciones;  //[x1,y1,come,x2,y2,come]
     int sel_i,sel_j;
     bool selectPiece;
+    int IAProfundidad;
 };
 
-Game::Game():mWindow(sf::VideoMode(BOARD_SIZE_PX * SCALE_FACTOR, BOARD_SIZE_PX * SCALE_FACTOR), "Damas"),
+Game::Game(int _iaProfundidad):mWindow(sf::VideoMode(BOARD_SIZE_PX * SCALE_FACTOR, BOARD_SIZE_PX * SCALE_FACTOR), "Damas"),
 boardTexture(),
 boardSprite()
 {
@@ -125,11 +236,13 @@ boardSprite()
         0,1,0,1,0,1,0,1,
         1,0,1,0,1,0,1,0
     };
+    selectPiece = false;
+    IAProfundidad = _iaProfundidad;
+    // config Human
     for (int i = 0; i < 64; i++)
         Tablero[i] = config_human[i];
     piezaJugador = 1;
     piezaIA = 2;
-    selectPiece = false;
 }
 
 // bucle principal
@@ -221,8 +334,9 @@ void Game::handleClick(sf::Event::MouseButtonEvent evt)
                     else if (Tablero[i] == 2) negras++;
                 }
 
-                Tree IATree(Tablero, rojas, negras);
+                Tree IATree(Tablero, rojas, negras, IAProfundidad);
                 IATree.calcular_jugada(Tablero);
+                break;
             }
         }
     }
@@ -296,7 +410,7 @@ void Game::render()
 
 int main()
 {
-    Game game;
+    Game game(2);
     game.run();
     
     return 0;
