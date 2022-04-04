@@ -21,21 +21,30 @@ struct Nodo
         for (int i = 0; i < 64; i++)
             config[i] = A[i];
     }
+
+    void print(){
+        for (int i = 0; i < 8; i++){
+            for (int j = 0; j < 8; j++)
+                std::cout << config[i*8+j] << " ";
+            std::cout << "\n";
+        }
+    }
 };
 
 class Tree
 {
 public:
-    Tree (int *config, int nro_rojas, int nro_negras, int profundidad);
+    Tree(int *config, int nro_rojas, int nro_negras, int profundidad);
+    ~Tree();
     // funcion q modifica el tablero a la jugada escogida por minmax
     void calcular_jugada(int *Tablero);
 private:
     Nodo *root;
     int p;  // limite de la profundidad del arbol
 
-    void insertHijos(Nodo *nodo);
-    void genRecursiva(Nodo *nodo, int nivel);
-    int min_max(Nodo *nodo, int nivel);
+    void insertHijos(Nodo *nodo, int nivel);
+    int min_max(Nodo *nodo, int nivel, int &mejor);
+    void delNodo(Nodo *nodo);
 };
 
 Tree::Tree (int *config, int nro_rojas, int nro_negras, int profundidad)
@@ -44,34 +53,45 @@ Tree::Tree (int *config, int nro_rojas, int nro_negras, int profundidad)
     p = profundidad;
 }
 
-void Tree::genRecursiva(Nodo *nodo, int nivel)
+void Tree::delNodo(Nodo *nodo)
 {
-    if (nivel < p){
-        insertHijos(nodo);
+    if (nodo->hijos.size() == 0){
+        delete nodo;
+    }else{
         for (int i = 0; i < nodo->hijos.size(); i++){
-            genRecursiva(nodo->hijos[i],nivel+1);
+            delNodo(nodo->hijos[i]);
         }
     }
 }
 
-int Tree::min_max(Nodo *nodo, int nivel)
+Tree::~Tree()
 {
+    delNodo(root);
+}
+
+int Tree::min_max(Nodo *nodo, int nivel, int &mejor)
+{
+    std::cout << "MINMAX_call\n";
+    nodo->print();
+    if (nivel < p)
+        insertHijos(nodo,nivel);
+    std::cout << "Hijos: " << nodo->hijos.size() << "\n";
     if (nodo->hijos.size() == 0){
         return nodo->value;
     }
     else{
-        int min = 1000;
-        int max = 0;
+        int min = 10000;
+        int max = -10000;
         if (nivel & 1){ //min
             for (int i = 0; i < nodo->hijos.size(); i++){
-                int val = min_max(nodo->hijos[i],nivel+1);
+                int val = min_max(nodo->hijos[i],nivel+1,mejor);
                 if (val < min) min = val;
             }
             return min;
         }else{          //max
             for (int i = 0; i < nodo->hijos.size(); i++){
-                int val = min_max(nodo->hijos[i],nivel+1);
-                if (val > max) max = val;
+                int val = min_max(nodo->hijos[i],nivel+1,mejor);
+                if (val > max){max = val; mejor = i;}
             }
             return max;
         }
@@ -80,72 +100,124 @@ int Tree::min_max(Nodo *nodo, int nivel)
 
 void Tree::calcular_jugada(int *Tablero)
 {
-    // generar todo el arbol hasta el nivel de profundidad escogido
-    genRecursiva(root,0);
     // hacer uso del algoritmo min_max para encontrar el mejor camino
-    int mejor = min_max(root,0);
+    // aqui tmb se genera todo el arbol
+    int mejor;
+    min_max(root,0,mejor);
     // elaborar la jugada del mejor camino
-    for (int i = 0; i < root->hijos.size(); i++){
-        if (root->hijos[i]->value == mejor){
-            for (int j = 0; j < 64; j++)
-                Tablero[j] = root->hijos[i]->config[j];
-            break;
-        }
-    }
+    for (int j = 0; j < 64; j++)
+        Tablero[j] = root->hijos[mejor]->config[j];
 }
 
-void Tree::insertHijos(Nodo *nodo)
+void Tree::insertHijos(Nodo *nodo, int nivel)
 {
     int p[64];  // puntero auxiliar que modificaremos en lugar de config
     for (int k = 0; k < 64; k++)
         p[k] = nodo->config[k];
-    for (int i = 0; i < 8; i++){
-        for (int j = 0; j < 8; j++){
-            if (nodo->config[i*8+j] == piezaIA){
-                // mov izq
-                if (j > 0 && nodo->config[(i+1)*8+j-1] == 0){
-                    p[(i+1)*8+j-1] = piezaIA;
-                    p[i*8+j] = 0;
-                    Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
-                    nodo->hijos.push_back(n);
-                    // revierto cambios en p
-                    p[(i+1)*8+j-1] = 0;
-                    p[i*8+j] = piezaIA;
-                }
-                // mov der
-                if (j < 7 && nodo->config[(i+1)*8+j+1] == 0){
-                    p[(i+1)*8+j+1] = piezaIA;
-                    p[i*8+j] = 0;
-                    Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
-                    nodo->hijos.push_back(n);
-                    // revierto cambios en p
-                    p[(i+1)*8+j+1] = 0;
-                    p[i*8+j] = piezaIA;
-                }
-                // comer izq
-                if (j > 1 && i < 6 && nodo->config[(i+2)*8+j-2] == 0 && nodo->config[(i+1)*8+j-1] == piezaJugador){
-                    p[(i+2)*8+j-2] = piezaIA;
-                    p[(i+1)*8+j-1] = 0;
-                    p[i*8+j] = 0;
-                    Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1) : new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras);
-                    nodo->hijos.push_back(n);
-                    // revierto cambios en p
-                    p[(i+2)*8+j-2] = 0;
-                    p[(i+1)*8+j-1] = piezaJugador;
-                    p[i*8+j] = piezaIA;
-                }
-                // comer der
-                if (j < 6 && i < 6 && nodo->config[(i+2)*8+j+2] == 0 && nodo->config[(i+1)*8+j+1] == piezaJugador){
-                    p[(i+2)*8+j+2] = piezaIA;
-                    p[(i+1)*8+j+1] = 0;
-                    p[i*8+j] = 0;
-                    Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1) : new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras);
-                    nodo->hijos.push_back(n);
-                    // revierto cambios en p
-                    p[(i+2)*8+j+2] = 0;
-                    p[(i+1)*8+j+1] = piezaJugador;
-                    p[i*8+j] = piezaIA;
-                }
+    if (nivel & 1){     // turno del humano
+        for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+        if (nodo->config[i*8+j] == piezaJugador){
+            // mov izq
+            if (j > 0 && i > 0 && nodo->config[(i-1)*8+j-1] == 0){
+                p[(i-1)*8+j-1] = piezaJugador;
+                p[i*8+j] = 0;
+                Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i-1)*8+j-1] = 0;
+                p[i*8+j] = piezaJugador;
+                std::cout << i << "," << j << "human:mov izq\n";
+            }
+            // mov der
+            if (j < 7 && i > 0 && nodo->config[(i-1)*8+j+1] == 0){
+                p[(i-1)*8+j+1] = piezaJugador;
+                p[i*8+j] = 0;
+                Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i-1)*8+j+1] = 0;
+                p[i*8+j] = piezaJugador;
+                std::cout << i << "," << j << "human:mov der\n";
+            }
+            // comer izq
+            if (j > 1 && i > 1 && nodo->config[(i-2)*8+j-2] == 0 && nodo->config[(i-1)*8+j-1] == piezaIA){
+                p[(i-2)*8+j-2] = piezaJugador;
+                p[(i-1)*8+j-1] = 0;
+                p[i*8+j] = 0;
+                Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras) : new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i-2)*8+j-2] = 0;
+                p[(i-1)*8+j-1] = piezaIA;
+                p[i*8+j] = piezaJugador;
+                std::cout << i << "," << j << "human:comer izq\n";
+            }
+            // comer der
+            if (j < 6 && i > 1 && nodo->config[(i-2)*8+j+2] == 0 && nodo->config[(i-1)*8+j+1] == piezaIA){
+                p[(i-2)*8+j+2] = piezaIA;
+                p[(i-1)*8+j+1] = 0;
+                p[i*8+j] = 0;
+                Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras) : new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i-2)*8+j+2] = 0;
+                p[(i-1)*8+j+1] = piezaJugador;
+                p[i*8+j] = piezaIA;
+                std::cout << i << "," << j << "human:comer der\n";
+            }
+        }
+    }else{              // turno de la IA
+        for (int i = 0; i < 8; i++)
+        for (int j = 0; j < 8; j++)
+        if (nodo->config[i*8+j] == piezaIA){
+            // mov izq
+            if (j > 0 && i < 7 && nodo->config[(i+1)*8+j-1] == 0){
+                p[(i+1)*8+j-1] = piezaIA;
+                p[i*8+j] = 0;
+                Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i+1)*8+j-1] = 0;
+                p[i*8+j] = piezaIA;
+                std::cout << i << "," << j << "ia:mov izq\n";
+            }
+            // mov der
+            if (j < 7 && i < 7 && nodo->config[(i+1)*8+j+1] == 0){
+                p[(i+1)*8+j+1] = piezaIA;
+                p[i*8+j] = 0;
+                Nodo *n = new Nodo(p,nodo->nro_rojas,nodo->nro_negras);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i+1)*8+j+1] = 0;
+                p[i*8+j] = piezaIA;
+                std::cout << i << "," << j << "ia:mov der\n";
+            }
+            // comer izq
+            if (j > 1 && i < 6 && nodo->config[(i+2)*8+j-2] == 0 && nodo->config[(i+1)*8+j-1] == piezaJugador){
+                p[(i+2)*8+j-2] = piezaIA;
+                p[(i+1)*8+j-1] = 0;
+                p[i*8+j] = 0;
+                Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1) : new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i+2)*8+j-2] = 0;
+                p[(i+1)*8+j-1] = piezaJugador;
+                p[i*8+j] = piezaIA;
+                std::cout << i << "," << j << " ia:comer izq\n";
+            }
+            // comer der
+            if (j < 6 && i < 6 && nodo->config[(i+2)*8+j+2] == 0 && nodo->config[(i+1)*8+j+1] == piezaJugador){
+                p[(i+2)*8+j+2] = piezaIA;
+                p[(i+1)*8+j+1] = 0;
+                p[i*8+j] = 0;
+                Nodo *n = (piezaIA == 1) ? new Nodo(p,nodo->nro_rojas,nodo->nro_negras-1) : new Nodo(p,nodo->nro_rojas-1,nodo->nro_negras);
+                nodo->hijos.push_back(n);
+                // revierto cambios en p
+                p[(i+2)*8+j+2] = 0;
+                p[(i+1)*8+j+1] = piezaJugador;
+                p[i*8+j] = piezaIA;
+                std::cout << i << "," << j << "ia:comer der\n";
             }
         }
     }
@@ -154,7 +226,7 @@ void Tree::insertHijos(Nodo *nodo)
 class Game
 {
 public:
-    Game(int _iaProfundidad);
+    Game(int _iaProfundidad, bool iniciaHumano);
     void run();
 
 private:
@@ -179,7 +251,7 @@ private:
     int IAProfundidad;
 };
 
-Game::Game(int _iaProfundidad):mWindow(sf::VideoMode(BOARD_SIZE_PX * SCALE_FACTOR, BOARD_SIZE_PX * SCALE_FACTOR), "Damas"),
+Game::Game(int _iaProfundidad, bool iniciaHumano):mWindow(sf::VideoMode(BOARD_SIZE_PX * SCALE_FACTOR, BOARD_SIZE_PX * SCALE_FACTOR), "Damas"),
 boardTexture(),
 boardSprite()
 {
@@ -236,30 +308,56 @@ boardSprite()
         0,1,0,1,0,1,0,1,
         1,0,1,0,1,0,1,0
     };
+    // int config_human[64] = {
+    //     0,0,0,0,0,2,0,2, 
+    //     2,0,0,0,2,0,2,0,
+    //     0,2,0,2,0,2,0,2,
+    //     2,0,1,0,0,0,1,0,
+    //     0,1,0,0,0,0,0,0,
+    //     1,0,1,0,1,0,0,0,
+    //     0,0,0,0,0,0,0,0,
+    //     1,0,1,0,2,0,1,0
+    // };
     selectPiece = false;
     IAProfundidad = _iaProfundidad;
     // config Human
-    for (int i = 0; i < 64; i++)
-        Tablero[i] = config_human[i];
-    piezaJugador = 1;
-    piezaIA = 2;
+    if (iniciaHumano){
+        for (int i = 0; i < 64; i++)
+            Tablero[i] = config_human[i];
+        piezaJugador = 1;
+        piezaIA = 2;
+    }
+    else{
+        for (int i = 0; i < 64; i++)
+            Tablero[i] = config_ia[i];
+        piezaJugador = 2;
+        piezaIA = 1;
+    }
 }
 
 // bucle principal
 void Game::run()
 {
     render();
-    sf::Clock clock;
-    sf::Time timeSinceLastUpdate = sf::Time::Zero;
     while (mWindow.isOpen())
     {
         processEvents();
-        timeSinceLastUpdate += clock.restart();
-        while (timeSinceLastUpdate > TimePerFrame)
+    }
+}
+
+void Game::processEvents()
+{
+    sf::Event event;
+    while (mWindow.pollEvent(event))
+    {
+        switch (event.type)
         {
-            timeSinceLastUpdate -= TimePerFrame;
-            processEvents();
-            update(TimePerFrame);
+        case sf::Event::MouseButtonPressed:
+            handleClick(event.mouseButton);
+            break;
+        case sf::Event::Closed:
+            mWindow.close();
+            break;
         }
     }
 }
@@ -344,29 +442,6 @@ void Game::handleClick(sf::Event::MouseButtonEvent evt)
     render();
 }
 
-void Game::processEvents()
-{
-    sf::Event event;
-    while (mWindow.pollEvent(event))
-    {
-        switch (event.type)
-        {
-        case sf::Event::MouseButtonPressed:
-            handleClick(event.mouseButton);
-            break;
-        case sf::Event::Closed:
-            mWindow.close();
-            break;
-        }
-    }
-}
-
-// dT = tiempo entre frames
-void Game::update(sf::Time dT)
-{
-    
-}
-
 void Game::render()
 {
     mWindow.clear();
@@ -410,7 +485,7 @@ void Game::render()
 
 int main()
 {
-    Game game(2);
+    Game game(2,true);
     game.run();
     
     return 0;
