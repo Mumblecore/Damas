@@ -426,11 +426,12 @@ bool Game::handleClick(sf::Event::MouseButtonEvent evt)
                     if (Tablero[i] == 1) rojas++;
                     else if (Tablero[i] == 2) negras++;
                 }
-                Tree IATree(Tablero, rojas, negras, IAProfundidad);
-                if (IATree.calcular_jugada(Tablero) == false){
+                Tree *IATree = new Tree(Tablero, rojas, negras, IAProfundidad);
+                if (IATree->calcular_jugada(Tablero) == false){
                     std::cout << "IA No tiene mas jugadas disponibles.\n";
                     return false;
                 }
+                delete IATree;
 
                 // comprobar si el humano perdio
                 rojas = 0; negras = 0;
@@ -444,12 +445,13 @@ bool Game::handleClick(sf::Event::MouseButtonEvent evt)
                 }
 
                 // comprobrar si le quedan movimientos al humano
-                Tree T(Tablero,rojas,negras,IAProfundidad);
-                T.insertHijos(T.root,1);
-                if (T.root->hijos.size() == 0){
+                Tree *T = new Tree(Tablero,rojas,negras,IAProfundidad);
+                T->insertHijos(T->root,1);
+                if (T->root->hijos.size() == 0){
                     std::cout << "Humano No tiene mas jugadas disponibles.\n";
                     return false;
                 }
+                delete T;
 
                 // preparar para la proxima jugada
                 selectPiece = false;
